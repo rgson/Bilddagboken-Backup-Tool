@@ -284,7 +284,9 @@ def picture_to_base64_data(url):
 def repair_html(html_str):
 	parser = html5parser.HTMLParser(namespaceHTMLElements=False)
 	parsed = html5parser.fromstring(html_str, guess_charset=False, parser=parser)
-	return etree.tostring(parsed, encoding='unicode')
+	result = etree.tostring(parsed, encoding='unicode')
+	result = result.replace('<b/>', '').replace('<i/>', '')
+	return result
 
 ################################################################################
 # Classes
