@@ -5,6 +5,7 @@
 
 from argparse import ArgumentParser, FileType
 from base64 import b64encode
+from copy import deepcopy
 from html5lib import HTMLParser
 from html5lib.treebuilders.etree_lxml import TreeBuilder
 from lxml import etree
@@ -17,7 +18,6 @@ from sys import exit, stderr
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import urlopen, Request
-
 
 ################################################################################
 # Functions
@@ -82,7 +82,8 @@ def fetch_dom(url, guestpass=None):
 		request.add_header('Cookie', 'dv_guestpass=' + guestpass)
 	request.add_header('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.110 Safari/537.36')
 	response = urlopen(request)
-	parsed = html5parser.parse(response, parser=HTMLParser(strict=False, tree=TreeBuilder, namespaceHTMLElements=False))
+	parser = HTMLParser(strict=False, tree=TreeBuilder, namespaceHTMLElements=False)
+	parsed = html5parser.parse(response, parser=parser)
 	return parsed
 
 def find_comment_avatar(comment_elem):
@@ -110,7 +111,14 @@ def find_entry_comments(entry_dom):
 
 def find_entry_description(entry_dom):
 	selector = CSSSelector('#showContentHolder #showContentTextHtml')
-	return get_full_node_content(selector(entry_dom)[0]).strip()
+	text = get_full_node_content(selector(entry_dom)[0]).strip()
+	selector = CSSSelector('#showContentHolder')
+	copy = deepcopy(selector(entry_dom)[0])
+	selector = CSSSelector('#showContentHolder > div')
+	for trash in selector(copy):
+		copy.remove(trash)
+	text += get_full_node_content(copy).strip()
+	return repair_html(text)
 
 def find_entry_id(entry_dom):
 	selector = CSSSelector('#imagetagsToolbar input[name="imageid"]')
@@ -275,6 +283,10 @@ def picture_to_base64_data(url):
 	except (HTTPError, ValueError) as err:
 		print(err, '(URL: {0})'.format(url), file=stderr)
 
+def repair_html(html_str):
+	parser = HTMLParser(strict=False, tree=TreeBuilder, namespaceHTMLElements=False)
+	parsed = html5parser.fromstring(html_str, parser=parser)
+	return etree.tostring(parsed, encoding='unicode')
 
 ################################################################################
 # Script

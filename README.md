@@ -16,6 +16,15 @@ In fact, the terms of use clearly state that each user owns the content of their
 However, `bdb_dumper` must obviously __not__ be used to download the content of another user's profile without their permission! Each user's content belongs to them. Hence you must have the user's explicit permission before downloading any material from their profile.
 
 
+## Note on broken HTML
+
+Many changes have been made to Bilddagboken/Dayviews throughout its lifetime, including several changes to the formatting capabilities etc. As a result, many picture descriptions contain incredibly broken HTML. In fact, the descriptions are occasionally so broken that they manage to break the layout of the original page and escape the elements where they are expected to reside.
+
+Overall, the HTML parser usually does a pretty good job cleaning up the mess. Additionally, the script takes a few extra steps in an attempt to include runaway text and to repair it. Even still, the result is not always quite what one would expect. You are therefore strongly recommended to look through the resulting file to make sure that it is acceptable before considering it a complete backup.
+
+If you happen upon a case which the script fails to handle, please consider reporting it as an issue. If possible, include the URL to the identified example or at least a toy example that reproduces the issue.
+
+
 ## Usage
 
 	usage: bdb_dumper.py [-h] -u USERNAME [-p GUESTPASS] [-o OUTPUT] [-l LIMIT]
