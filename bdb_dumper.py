@@ -7,23 +7,22 @@ from argparse import ArgumentParser, FileType
 from base64 import b64encode
 from html5lib import HTMLParser
 from html5lib.treebuilders.etree_lxml import TreeBuilder
-from lxml import html, etree
+from lxml import etree
 from lxml.cssselect import CSSSelector
 from lxml.html import html5parser
 from operator import itemgetter
 from posixpath import basename
 from re import match
-from sys import stderr, exit
+from sys import exit, stderr
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import urlopen, Request
 
 
 ################################################################################
 # Functions
 
 def add_date_and_index(entry):
-	print(entry['title'])
 	pattern = '.+? (\d+?) (.+?) (\d+?)   .+? (\d+?)\/\d+?' #Note: important non-breaking space inbetween two normal spaces.
 	matches = match(pattern, entry['title'])
 	entry['date'] = '{year:04d}-{month:02d}-{day:02d}'.format(
@@ -346,8 +345,6 @@ if url == None:
 	else:
 		print('  Perhaps the guest password is incorrect?', file=stderr)
 	exit(1)
-
-print(args.limit)
 
 while url != None and (args.limit == None or counter < args.limit):
 	counter += 1
