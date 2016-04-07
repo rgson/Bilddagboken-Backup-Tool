@@ -9,11 +9,15 @@ from lxml.cssselect import CSSSelector
 from operator import itemgetter
 from posixpath import basename
 #from pprint import pprint
-from sys import stderr
+from sys import stderr, exit
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 from uuid import uuid4
+from lxml.html import html5parser
+from html5lib import HTMLParser
+from html5lib.treebuilders.etree_lxml import TreeBuilder
+
 
 ################################################################################
 # Functions
@@ -25,8 +29,9 @@ def fetch_dom(url, guestpass=None, language='sv'):
 		request.add_header('Cookie', 'dv_guestpass=' + guestpass)
 	request.add_header('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.110 Safari/537.36')
 	response = urlopen(request)
-	content = response.read()
-	return html.fromstring(content)
+#	content = response.read()
+	parsed = html5parser.parse(response, parser=HTMLParser(strict=False, tree=TreeBuilder, namespaceHTMLElements=False))
+	return parsed
 
 def find_newest_picture(profile_dom):
 	selector = CSSSelector('.contentImageList > div:first-of-type > a.openImage')
@@ -300,21 +305,20 @@ def format_html_reply(reply):
 # Script
 
 # TODO parameterize
-USERNAME = 'robin93' #'b3478937'
+USERNAME = 'robin93'
 GUESTPASS = 'torsklever'
 OUTPUT = 'bdb_' + USERNAME + '.htm'
 
-#profile_url = 'http://dayviews.com/' + USERNAME + '/'
-#print('Starting! (URL: {0})'.format(profile_url))
-#profile_dom = fetch_dom(profile_url, GUESTPASS)
+profile_url = 'http://dayviews.com/' + USERNAME + '/'
+print('Starting! (URL: {0})'.format(profile_url))
+profile_dom = fetch_dom(profile_url, GUESTPASS)
 
 entries = []
 pictures = {}
-url = 'http://dayviews.com/Robin93/173031360/'#find_newest_picture(profile_dom)
+url = find_newest_picture(profile_dom)
 counter = 0
 
-#while url != None:
-for i in range(1):
+while url != None:
 	counter += 1
 	print('Downloading entry #{0} (URL: {1})'.format(counter, url))
 	entry_dom = fetch_dom(url, GUESTPASS)
@@ -346,9 +350,6 @@ print('Done!')
 #           (i.e. Ditt_namn_Ditt_efternamn_Din_gata_Namnet_pa_den_du_gillar_Komunen_du_bor_i_Namnet_pa_personen_du.jpg)
 #           in which case this is shared by other pictures with the same description.
 # * {content:url(None);} for some pictures. Could be omitted entirely instead.
-#
-# REMAINING:
-# * Sorting by ID is insufficient for entries. Must be sorted by date and index.
 # * Certain pieces of text are lost for comments and replies, e.g. "<3"
 #    Examples: söndag 2 mars 2008   bild 1/2
 #              söndag 6 april 2008   bild 2/6
@@ -356,5 +357,8 @@ print('Done!')
 # * Duplicated comment replies for different comments.
 #    Example: lördag 10 maj 2008   bild 2/3
 #    Cause: Probably also related to the extraction of text.
+#
+# REMAINING:
+# * Sorting by ID is insufficient for entries. Must be sorted by date and index.
 # * Entire HTML file should be minified to remove indentation, spaces, etc.
 #
