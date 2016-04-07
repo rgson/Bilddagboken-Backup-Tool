@@ -3,7 +3,7 @@
 ################################################################################
 # Imports
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, FileType
 from base64 import b64encode
 from html5lib import HTMLParser
 from html5lib.treebuilders.etree_lxml import TreeBuilder
@@ -289,15 +289,6 @@ def get_full_node_content(node):
 		s += etree.tostring(child, encoding='unicode')
 	return s
 
-def is_writable(filename):
-	try:
-		with open(filename, 'w'):
-			pass
-	except PermissionError:
-		return False
-	else:
-		return True
-
 def make_picture_class(pictures, url):
 	this = make_picture_class
 	if 'class_counter' not in this.__dict__:
@@ -335,16 +326,13 @@ def picture_to_base64_data(url):
 parser = ArgumentParser()
 parser.add_argument('-u', '--username',  dest='username',  help='The username, as seen in the profile URL.', required=True)
 parser.add_argument('-p', '--guestpass', dest='guestpass', help='The guest password to the user\'s profile.')
-parser.add_argument('-o', '--output',    dest='output',    help='The output file where the dump is to be saved.', default='bilddagboken_dump.htm')
+parser.add_argument('-o', '--output',    dest='output',    help='The output file where the dump is to be saved.', default='bilddagboken_dump.htm', type=FileType('w'))
+parser.add_argument('-l', '--limit',     dest='limit',     help='Limits the number of entries saved.', type=int)
 args = parser.parse_args()
 
 entries = []
 pictures = {}
 counter = 0
-
-if not is_writable(args.output):
-	print('The output file ({0}) is not writable!'.format(args.output), file=stderr)
-	exit(1)
 
 profile_url = 'http://dayviews.com/' + args.username + '/'
 print('Starting! (URL: {0})'.format(profile_url))
@@ -359,7 +347,9 @@ if url == None:
 		print('  Perhaps the guest password is incorrect?', file=stderr)
 	exit(1)
 
-while url != None:
+print(args.limit)
+
+while url != None and (args.limit == None or counter < args.limit):
 	counter += 1
 	print('Downloading entry #{0} (URL: {1})'.format(counter, url))
 	entry_dom = fetch_dom(url, args.guestpass)
@@ -372,7 +362,6 @@ deep_sort(entries)
 
 print('Generating HTML output...')
 output_html = format_html(args.username, entries, pictures)
-with open(args.output, 'w') as output_file:
-	print(output_html, file=output_file)
+print(output_html, file=args.output)
 
 print('Done!')
