@@ -6,8 +6,6 @@
 from argparse import ArgumentParser, FileType
 from base64 import b64encode
 from copy import deepcopy
-from html5lib import HTMLParser
-from html5lib.treebuilders.etree_lxml import TreeBuilder
 from lxml import etree
 from lxml.cssselect import CSSSelector
 from lxml.html import html5parser
@@ -82,8 +80,8 @@ def fetch_dom(url, guestpass=None):
 		request.add_header('Cookie', 'dv_guestpass=' + guestpass)
 	request.add_header('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.110 Safari/537.36')
 	response = urlopen(request)
-	parser = HTMLParser(strict=False, tree=TreeBuilder, namespaceHTMLElements=False)
-	parsed = html5parser.parse(response, parser=parser)
+	parser = HTMLParserUTF8(namespaceHTMLElements=False)
+	parsed = html5parser.parse(response, guess_charset=False, parser=parser)
 	return parsed
 
 def find_comment_avatar(comment_elem):
@@ -284,9 +282,20 @@ def picture_to_base64_data(url):
 		print(err, '(URL: {0})'.format(url), file=stderr)
 
 def repair_html(html_str):
-	parser = HTMLParser(strict=False, tree=TreeBuilder, namespaceHTMLElements=False)
-	parsed = html5parser.fromstring(html_str, parser=parser)
+	parser = html5parser.HTMLParser(namespaceHTMLElements=False)
+	parsed = html5parser.fromstring(html_str, guess_charset=False, parser=parser)
 	return etree.tostring(parsed, encoding='unicode')
+
+################################################################################
+# Classes
+
+class HTMLParserUTF8(html5parser.HTMLParser):
+	"""
+	This class is a hack to force the use of utf8 when parsing the response.
+	The charset determination used by lxml.html5parser gets it wrong occasionally.
+	"""
+	def parse(self, stream, useChardet=False): # Note: useChardet is not respected.
+		return html5parser.HTMLParser.parse(self, stream, encoding='utf8', useChardet=False)
 
 ################################################################################
 # Script
