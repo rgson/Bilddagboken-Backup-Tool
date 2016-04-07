@@ -160,119 +160,80 @@ def find_reply_text(reply_elem):
 	return get_full_node_content(selector(reply_elem)[0]).strip()
 
 def format_html(username, entries, pictures):
-	return '''
-	<!DOCTYPE html>
-	<html>
-	<head>
-		<title>Bilddagboken - {username}</title>
-		<meta charset='utf-8'>
-		<style type='text/css'>
-			{picture_css}
-		</style>
-		<style type='text/css'>
-			{normal_css}
-		</style>
-	</head>
-	<body>
-		<header>
-			<h1>Bilddagboken - {username}</h1>
-		</header>
-		<main>
-			{entries}
-		</main>
-	</body>
-	</html>
-	'''.format(username=username, picture_css=format_html_picture_css(pictures),
+	return (
+	'<!DOCTYPE html>'
+	'<html>'
+	'<head>'
+		'<title>Bilddagboken - {username}</title>'
+		'<meta charset=\'utf-8\'>'
+		'<style>{picture_css}</style>'
+		'<style>{normal_css}</style>'
+	'</head>'
+	'<body>'
+		'<h1>Bilddagboken - {username}</h1>'
+		'{entries}'
+	'</body>'
+	'</html>'
+	).format(username=username, picture_css=format_html_picture_css(pictures),
 				normal_css=format_html_normal_css(), entries=format_html_entries(entries))
 
 def format_html_comment(comment):
 	replies_html = format_html_replies(comment['replies'])
-	return '''
-	<div id='comment-{id}' class='comment'>
-		<img class='{img_class}'>
-		<span class='name'>{name}</span>
-		<span class='date'>{date}</span>
-		<p class='text'>{text}</p>
-		<div class='replies'>{replies_html}</div>
-	</div>
-	'''.format(replies_html=replies_html, **comment)
+	return (
+	'<div class="comment">'
+		'<img class="{img_class}">'
+		'{name}'
+		'<span class="date">{date}</span>'
+		'<p>{text}</p>'
+		'<div class="replies">{replies_html}</div>'
+	'</div>'
+	).format(replies_html=replies_html, **comment)
 
 def format_html_comments(comments):
-	return '\n'.join([format_html_comment(comment) for comment in comments])
+	return ''.join([format_html_comment(comment) for comment in comments])
 
 def format_html_entries(entries):
-	return '\n'.join([format_html_entry(entry) for entry in entries])
+	return ''.join([format_html_entry(entry) for entry in entries])
 
 def format_html_entry(entry):
 	comments_html = format_html_comments(entry['comments'])
-	return '''
-	<div id='entry-{id}' class='entry'>
-		<h2>{title}</h2>
-		<img class='{img_class}'>
-		<p>{text}</p>
-		<div class='comments'>{comments_html}</div>
-	</div>
-	'''.format(comments_html=comments_html, **entry)
+	return (
+	'<div class="entry">'
+		'<h2>{title}</h2>'
+		'<img class="{img_class}">'
+		'<p>{text}</p>'
+		'<div class="comments">{comments_html}</div>'
+	'</div>'
+	).format(comments_html=comments_html, **entry)
 
 def format_html_normal_css():
-	return '''
-		body {
-			width: 45em;
-			margin: auto;
-			font-family: sans-serif;
-			color: #333;
-			line-height: 1.6;
-			word-wrap: break-word
-		}
-		p {
-			margin-top: 0
-		}
-		.entry {
-			border: 1px solid #ddd;
-			padding: 0 30px;
-			margin-bottom: 1em
-		}
-		.entry>img {
-			display: block;
-			margin: 0 auto 1em;
-			max-width: 100%
-		}
-		.comments {
-			border-top: 1px solid #ddd;
-			padding-top: 1em
-		}
-		.replies {
-			margin-left: 25px
-		}
-		.comment>img, .reply>img {
-			float: left;
-			margin-right: 1em;
-			width: 50px;
-			height: 50px
-		}
-		.date {
-			color: #777
-		}
-		.entry>p, h1, h2 {
-			text-align: center
-		}
-		'''
+	return (
+		'body{width:45em;margin:auto;font-family:sans-serif;color:#333;line-height:1.6;word-wrap:break-word}'
+		'p{margin-top:0}'
+		'.entry{border:1px solid #ddd;padding:0 30px;margin-bottom:1em}'
+		'.entry>img{display:block;margin:0 auto 1em;max-width:100%}'
+		'.comments{border-top:1px solid #ddd;padding-top:1em}'
+		'.replies{margin-left:25px}'
+		'.comment>img,.reply>img{float:left;margin-right:1em;width:50px;height:50px}'
+		'.date{color:#777}'
+		'.entry>p,h1,h2{text-align:center}'
+		)
 
 def format_html_picture_css(pictures):
-	return ''.join(['.{class}{{content:url({data});}}'.format_map(p) for p in pictures.values() if p['class'] != None and p['data'] != None])
+	return ''.join(['.{class}{{content:url({data})}}'.format_map(p) for p in pictures.values() if p['class'] != None and p['data'] != None])
 
 def format_html_replies(replies):
-	return '\n'.join([format_html_reply(reply) for reply in replies])
+	return ''.join([format_html_reply(reply) for reply in replies])
 
 def format_html_reply(reply):
-	return '''
-		<div id='reply-{id}' class='reply'>
-			<img class='{img_class}'>
-			<span class='name'>{name}</span>
-			<span class='date'>{date}</span>
-			<p class='text'>{text}</p>
-		</div>
-		'''.format_map(reply)
+	return (
+		'<div class="reply">'
+			'<img class="{img_class}">'
+			'{name}'
+			'<span class="date">{date}</span>'
+			'<p>{text}</p>'
+		'</div>'
+		).format_map(reply)
 
 def get_filename(url):
 	return basename(urlsplit(url)[2])
@@ -281,11 +242,8 @@ def get_filetype(url):
 	return get_filename(url).rsplit('.', 1)[-1]
 
 def get_full_node_content(node):
-	s = node.text
-	if s is None:
-		s = ''
-	for child in node:
-		s += etree.tostring(child, encoding='unicode')
+	s = node.text or ''
+	s += ''.join([etree.tostring(child, encoding='unicode') for child in node])
 	return s
 
 def make_picture_class(pictures, url):
