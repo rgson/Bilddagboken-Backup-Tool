@@ -166,8 +166,7 @@ def format_html(username, entries, pictures):
 	'<head>'
 		'<title>Bilddagboken - {username}</title>'
 		'<meta charset=\'utf-8\'>'
-		'<style>{picture_css}</style>'
-		'<style>{normal_css}</style>'
+		'<style>{normal_css}{picture_css}</style>'
 	'</head>'
 	'<body>'
 		'<h1>Bilddagboken - {username}</h1>'
@@ -215,7 +214,7 @@ def format_html_normal_css():
 		'.comments{border-top:1px solid #ddd;padding-top:1em}'
 		'.replies{margin-left:25px}'
 		'.comment>img,.reply>img{float:left;margin-right:1em;width:50px;height:50px}'
-		'.date{color:#777}'
+		'.date{color:#777;float:right}'
 		'.entry>p,h1,h2{text-align:center}'
 		)
 
