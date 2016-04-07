@@ -3,6 +3,7 @@
 ################################################################################
 # Imports
 
+from argparse import ArgumentParser
 from base64 import b64encode
 from html5lib import HTMLParser
 from html5lib.treebuilders.etree_lxml import TreeBuilder
@@ -12,7 +13,7 @@ from lxml.html import html5parser
 from operator import itemgetter
 from posixpath import basename
 from re import match
-from sys import stderr
+from sys import stderr, exit
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
@@ -33,7 +34,10 @@ def fetch_dom(url, guestpass=None):
 
 def find_newest_picture(profile_dom):
 	selector = CSSSelector('.contentImageList > div:first-of-type > a.openImage')
-	return selector(profile_dom)[0].get('href')
+	try:
+		return selector(profile_dom)[0].get('href')
+	except:
+		return None
 
 def find_prev_entry_url(entry_dom):
 	selector = CSSSelector('.prevDayHref a')
@@ -223,7 +227,7 @@ def format_html(username, entries, pictures):
 		</main>
 	</body>
 	</html>
-	'''.format(username=USERNAME, picture_css=format_html_picture_css(pictures),
+	'''.format(username=username, picture_css=format_html_picture_css(pictures),
 				normal_css=format_html_normal_css(), entries=format_html_entries(entries))
 
 def format_html_picture_css(pictures):
@@ -315,29 +319,49 @@ def format_html_reply(reply):
 		</div>
 		'''.format_map(reply)
 
+def is_writable(filename):
+	try:
+		with open(filename, 'w'):
+			pass
+	except PermissionError:
+		return False
+	else:
+		return True
+
 
 ################################################################################
 # Script
 
-# TODO parameterize
-USERNAME = 'robin93'
-GUESTPASS = 'torsklever'
-OUTPUT = 'bdb_' + USERNAME + '.htm'
-
-profile_url = 'http://dayviews.com/' + USERNAME + '/'
-print('Starting! (URL: {0})'.format(profile_url))
-profile_dom = fetch_dom(profile_url, GUESTPASS)
+parser = ArgumentParser()
+parser.add_argument('-u', '--username',  dest='username',  help='The username, as seen in the profile URL.', required=True)
+parser.add_argument('-p', '--guestpass', dest='guestpass', help='The guest password to the user\'s profile.')
+parser.add_argument('-o', '--output',    dest='output',    help='The output file where the dump is to be saved.', default='bilddagboken_dump.htm')
+args = parser.parse_args()
 
 entries = []
 pictures = {}
-url = find_newest_picture(profile_dom)
 counter = 0
+
+if not is_writable(args.output):
+	print('The output file ({0}) is not writable!'.format(args.output), file=stderr)
+	exit(1)
+
+profile_url = 'http://dayviews.com/' + args.username + '/'
+print('Starting! (URL: {0})'.format(profile_url))
+profile_dom = fetch_dom(profile_url, args.guestpass)
+url = find_newest_picture(profile_dom)
+
+if url == None:
+	print('No pictures were found on the user\'s profile!', file=stderr)
+	if args.guestpass == None:
+		print('  Perhaps a guest password is needed?', file=stderr)
+	exit(1)
 
 #while url != None:
 for i in range(3):
 	counter += 1
 	print('Downloading entry #{0} (URL: {1})'.format(counter, url))
-	entry_dom = fetch_dom(url, GUESTPASS)
+	entry_dom = fetch_dom(url, args.guestpass)
 	entry = build_entry(entry_dom)
 	entries.append(entry)
 	add_picture_data(pictures, entry)
@@ -346,35 +370,8 @@ for i in range(3):
 deep_sort(entries)
 
 print('Generating HTML output...')
-output_html = format_html(USERNAME, entries, pictures)
-with open(OUTPUT, 'w') as output_file:
+output_html = format_html(args.username, entries, pictures)
+with open(args.output, 'w') as output_file:
 	print(output_html, file=output_file)
 
 print('Done!')
-
-
-##########
-# Issues
-#
-# SOLVED:
-# * Issue with some pictures being replaced by the one next to them (lower index is incorrectly same as higher index).
-#    Examples: onsdag 16 april 2008   bild 2/3  -->  onsdag 16 april 2008   bild 3/3
-#              fredag 18 april 2008   bild 7/28 -->  fredag 18 april 2008   bild 8/28
-#              torsdag 21 augusti 2008   bild 1/1 - tisdag 26 augusti 2008   bild 1/1 --> onsdag 27 augusti 2008   bild 1/1
-#              tisdag 14 augusti 2007   bild 1/9 - tisdag 14 augusti 2007   bild 8/9 --> tisdag 14 augusti 2007   bild 9/9
-#    Cause: Some pictures have titles based on the description
-#           (i.e. Ditt_namn_Ditt_efternamn_Din_gata_Namnet_pa_den_du_gillar_Komunen_du_bor_i_Namnet_pa_personen_du.jpg)
-#           in which case this is shared by other pictures with the same description.
-# * {content:url(None);} for some pictures. Could be omitted entirely instead.
-# * Certain pieces of text are lost for comments and replies, e.g. "<3"
-#    Examples: söndag 2 mars 2008   bild 1/2
-#              söndag 6 april 2008   bild 2/6
-#    Cause: Probably caused by the extraction of text incl. subcomments. > and < seem to fuck shit up.
-# * Duplicated comment replies for different comments.
-#    Example: lördag 10 maj 2008   bild 2/3
-#    Cause: Probably also related to the extraction of text.
-# * Sorting by ID is insufficient for entries. Must be sorted by date and index.
-#
-# REMAINING:
-# * Entire HTML file should be minified to remove indentation, spaces, etc.
-#
