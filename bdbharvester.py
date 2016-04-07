@@ -4,32 +4,30 @@
 # Imports
 
 from base64 import b64encode
+from html5lib import HTMLParser
+from html5lib.treebuilders.etree_lxml import TreeBuilder
 from lxml import html, etree
 from lxml.cssselect import CSSSelector
+from lxml.html import html5parser
 from operator import itemgetter
 from posixpath import basename
-#from pprint import pprint
-from sys import stderr, exit
+from re import match
+from sys import stderr
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
-from uuid import uuid4
-from lxml.html import html5parser
-from html5lib import HTMLParser
-from html5lib.treebuilders.etree_lxml import TreeBuilder
 
 
 ################################################################################
 # Functions
 
-def fetch_dom(url, guestpass=None, language='sv'):
+def fetch_dom(url, guestpass=None):
 	request = Request(url)
-	request.add_header('Accept-Language', language)
+	request.add_header('Accept-Language', 'sv')
 	if guestpass != None:
 		request.add_header('Cookie', 'dv_guestpass=' + guestpass)
 	request.add_header('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.110 Safari/537.36')
 	response = urlopen(request)
-#	content = response.read()
 	parsed = html5parser.parse(response, parser=HTMLParser(strict=False, tree=TreeBuilder, namespaceHTMLElements=False))
 	return parsed
 
@@ -43,13 +41,15 @@ def find_prev_entry_url(entry_dom):
 	return url if url[-2:] != '//' else None
 
 def build_entry(entry_dom):
-	return {
+	entry = {
 		'id': find_entry_id(entry_dom),
 		'title': find_entry_title(entry_dom),
 		'text': find_entry_description(entry_dom),
 		'picture': find_entry_picture(entry_dom),
 		'comments': find_entry_comments(entry_dom),
 	}
+	add_date_and_index(entry)
+	return entry
 
 def find_entry_id(entry_dom):
 	selector = CSSSelector('#imagetagsToolbar input[name="imageid"]')
@@ -154,13 +154,6 @@ def get_filename(url):
 def get_filetype(url):
 	return get_filename(url).rsplit('.', 1)[-1]
 
-def deep_sort(entries):
-	entries.sort(key=itemgetter('id'))
-	for entry in entries:
-		entry['comments'].sort(key=itemgetter('id'))
-		for comment in entry['comments']:
-			comment['replies'].sort(key=itemgetter('id'))
-
 def add_picture_data(pictures, entry):
 	entry['img_class'] = make_picture_class(pictures, entry['picture']) or ''
 	for comment in entry['comments']:
@@ -184,6 +177,28 @@ def make_picture_class(pictures, url):
 			pictures[url] = { 'class': 'p' + str(this.class_counter), 'data': data }
 			this.class_counter += 1
 	return pictures[url]['class']
+
+def month_number(month_str):
+	months = ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli',
+		'augusti', 'september', 'oktober', 'november', 'december']
+	return months.index(month_str) + 1
+
+def add_date_and_index(entry):
+	print(entry['title'])
+	pattern = '.+? (\d+?) (.+?) (\d+?)   .+? (\d+?)\/\d+?' #Note: important non-breaking space inbetween two normal spaces.
+	matches = match(pattern, entry['title'])
+	entry['date'] = '{year:04d}-{month:02d}-{day:02d}'.format(
+		year=int(matches.group(3)),
+		month=month_number(matches.group(2)),
+		day=int(matches.group(1)))
+	entry['index'] = int(matches.group(4))
+
+def deep_sort(entries):
+	entries.sort(key=itemgetter('date', 'index'))
+	for entry in entries:
+		entry['comments'].sort(key=itemgetter('id'))
+		for comment in entry['comments']:
+			comment['replies'].sort(key=itemgetter('id'))
 
 def format_html(username, entries, pictures):
 	return '''
@@ -318,7 +333,8 @@ pictures = {}
 url = find_newest_picture(profile_dom)
 counter = 0
 
-while url != None:
+#while url != None:
+for i in range(3):
 	counter += 1
 	print('Downloading entry #{0} (URL: {1})'.format(counter, url))
 	entry_dom = fetch_dom(url, GUESTPASS)
@@ -357,8 +373,8 @@ print('Done!')
 # * Duplicated comment replies for different comments.
 #    Example: lördag 10 maj 2008   bild 2/3
 #    Cause: Probably also related to the extraction of text.
+# * Sorting by ID is insufficient for entries. Must be sorted by date and index.
 #
 # REMAINING:
-# * Sorting by ID is insufficient for entries. Must be sorted by date and index.
 # * Entire HTML file should be minified to remove indentation, spaces, etc.
 #
