@@ -355,6 +355,8 @@ if url == None:
 	print('Not a single pictures was found on the user\'s profile.', file=stderr)
 	if args.guestpass == None:
 		print('  Perhaps a guest password is needed?', file=stderr)
+	else:
+		print('  Perhaps the guest password is incorrect?', file=stderr)
 	exit(1)
 
 while url != None:
