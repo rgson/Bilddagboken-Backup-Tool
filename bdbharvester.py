@@ -22,6 +22,60 @@ from urllib.request import Request, urlopen
 ################################################################################
 # Functions
 
+def add_date_and_index(entry):
+	print(entry['title'])
+	pattern = '.+? (\d+?) (.+?) (\d+?)   .+? (\d+?)\/\d+?' #Note: important non-breaking space inbetween two normal spaces.
+	matches = match(pattern, entry['title'])
+	entry['date'] = '{year:04d}-{month:02d}-{day:02d}'.format(
+		year=int(matches.group(3)),
+		month=month_number(matches.group(2)),
+		day=int(matches.group(1)))
+	entry['index'] = int(matches.group(4))
+
+def add_picture_data(pictures, entry):
+	entry['img_class'] = make_picture_class(pictures, entry['picture']) or ''
+	for comment in entry['comments']:
+		comment['img_class'] = make_picture_class(pictures, comment['avatar']) or ''
+		for reply in comment['replies']:
+			reply['img_class'] = make_picture_class(pictures, reply['avatar']) or ''
+
+def build_comment(comment_elem):
+	return {
+			'id': find_comment_id(comment_elem),
+			'date': find_comment_date(comment_elem),
+			'name': find_comment_name(comment_elem),
+			'avatar': find_comment_avatar(comment_elem),
+			'text': find_comment_text(comment_elem),
+			'replies': find_replies(comment_elem),
+		}
+
+def build_entry(entry_dom):
+	entry = {
+		'id': find_entry_id(entry_dom),
+		'title': find_entry_title(entry_dom),
+		'text': find_entry_description(entry_dom),
+		'picture': find_entry_picture(entry_dom),
+		'comments': find_entry_comments(entry_dom),
+	}
+	add_date_and_index(entry)
+	return entry
+
+def build_reply(reply_elem):
+	return {
+			'id': find_reply_id(reply_elem),
+			'date': find_reply_date(reply_elem),
+			'name': find_reply_name(reply_elem),
+			'avatar': find_reply_avatar(reply_elem),
+			'text': find_reply_text(reply_elem),
+		}
+
+def deep_sort(entries):
+	entries.sort(key=itemgetter('date', 'index'))
+	for entry in entries:
+		entry['comments'].sort(key=itemgetter('id'))
+		for comment in entry['comments']:
+			comment['replies'].sort(key=itemgetter('id'))
+
 def fetch_dom(url, guestpass=None):
 	request = Request(url)
 	request.add_header('Accept-Language', 'sv')
@@ -31,6 +85,45 @@ def fetch_dom(url, guestpass=None):
 	response = urlopen(request)
 	parsed = html5parser.parse(response, parser=HTMLParser(strict=False, tree=TreeBuilder, namespaceHTMLElements=False))
 	return parsed
+
+def find_comment_avatar(comment_elem):
+	selector = CSSSelector('.baseCommentDiv > .commentAvatarHolder img')
+	return selector(comment_elem)[0].get('src')
+
+def find_comment_date(comment_elem):
+	selector = CSSSelector('.baseCommentDiv > .commentTop > .commentDate')
+	return selector(comment_elem)[0].text
+
+def find_comment_id(comment_elem):
+	return int(comment_elem.get('id').rsplit('_', 1)[-1])
+
+def find_comment_name(comment_elem):
+	selector = CSSSelector('.baseCommentDiv > .commentTop > .userLink')
+	return selector(comment_elem)[0].text
+
+def find_comment_text(comment_elem):
+	selector = CSSSelector('.baseCommentDiv > .commentTextLong > .commentContent, .baseCommentDiv > .commentTextShort > .commentContent')
+	return get_full_node_content(selector(comment_elem)[0]).strip()
+
+def find_entry_comments(entry_dom):
+	selector = CSSSelector('#showContentHolder #showContentComments .commentHolder')
+	return [build_comment(comment_elem) for comment_elem in selector(entry_dom)]
+
+def find_entry_description(entry_dom):
+	selector = CSSSelector('#showContentHolder #showContentTextHtml')
+	return get_full_node_content(selector(entry_dom)[0]).strip()
+
+def find_entry_id(entry_dom):
+	selector = CSSSelector('#imagetagsToolbar input[name="imageid"]')
+	return int(selector(entry_dom)[0].get('value'))
+
+def find_entry_picture(entry_dom):
+	selector = CSSSelector('#showContentHolder img#picture')
+	return selector(entry_dom)[0].get('src')
+
+def find_entry_title(entry_dom):
+	selector = CSSSelector('#showContentHolder #showContentTitle')
+	return selector(entry_dom)[0].text.strip()
 
 def find_newest_picture(profile_dom):
 	selector = CSSSelector('.contentImageList > div:first-of-type > a.openImage')
@@ -44,165 +137,28 @@ def find_prev_entry_url(entry_dom):
 	url = selector(entry_dom)[0].get('href')
 	return url if url[-2:] != '//' else None
 
-def build_entry(entry_dom):
-	entry = {
-		'id': find_entry_id(entry_dom),
-		'title': find_entry_title(entry_dom),
-		'text': find_entry_description(entry_dom),
-		'picture': find_entry_picture(entry_dom),
-		'comments': find_entry_comments(entry_dom),
-	}
-	add_date_and_index(entry)
-	return entry
-
-def find_entry_id(entry_dom):
-	selector = CSSSelector('#imagetagsToolbar input[name="imageid"]')
-	return int(selector(entry_dom)[0].get('value'))
-
-def find_entry_title(entry_dom):
-	selector = CSSSelector('#showContentHolder #showContentTitle')
-	return selector(entry_dom)[0].text.strip()
-
-def find_entry_description(entry_dom):
-	selector = CSSSelector('#showContentHolder #showContentTextHtml')
-	return get_full_node_content(selector(entry_dom)[0]).strip()
-
-def find_entry_picture(entry_dom):
-	selector = CSSSelector('#showContentHolder img#picture')
-	return selector(entry_dom)[0].get('src')
-
-def find_entry_comments(entry_dom):
-	selector = CSSSelector('#showContentHolder #showContentComments .commentHolder')
-	return [build_comment(comment_elem) for comment_elem in selector(entry_dom)]
-
-def build_comment(comment_elem):
-	return {
-			'id': find_comment_id(comment_elem),
-			'date': find_comment_date(comment_elem),
-			'name': find_comment_name(comment_elem),
-			'avatar': find_comment_avatar(comment_elem),
-			'text': find_comment_text(comment_elem),
-			'replies': find_replies(comment_elem),
-		}
-
-def find_comment_id(comment_elem):
-	return int(comment_elem.get('id').rsplit('_', 1)[-1])
-
-def find_comment_date(comment_elem):
-	selector = CSSSelector('.baseCommentDiv > .commentTop > .commentDate')
-	return selector(comment_elem)[0].text
-
-def find_comment_name(comment_elem):
-	selector = CSSSelector('.baseCommentDiv > .commentTop > .userLink')
-	return selector(comment_elem)[0].text
-
-def find_comment_avatar(comment_elem):
-	selector = CSSSelector('.baseCommentDiv > .commentAvatarHolder img')
-	return selector(comment_elem)[0].get('src')
-
-def find_comment_text(comment_elem):
-	selector = CSSSelector('.baseCommentDiv > .commentTextLong > .commentContent, .baseCommentDiv > .commentTextShort > .commentContent')
-	return get_full_node_content(selector(comment_elem)[0]).strip()
-
 def find_replies(comment_elem):
 	selector = CSSSelector('.commentDiscussionHolder .commentDiscussionReply')
 	return [build_reply(reply_elem) for reply_elem in selector(comment_elem)]
-
-def build_reply(reply_elem):
-	return {
-			'id': find_reply_id(reply_elem),
-			'date': find_reply_date(reply_elem),
-			'name': find_reply_name(reply_elem),
-			'avatar': find_reply_avatar(reply_elem),
-			'text': find_reply_text(reply_elem),
-		}
-
-def find_reply_id(reply_elem):
-	return int(reply_elem.get('id').rsplit('_', 1)[-1])
-
-def find_reply_date(reply_elem):
-	selector = CSSSelector('.commentDiscussionTop > .commentDate')
-	return selector(reply_elem)[0].text
-
-def find_reply_name(reply_elem):
-	selector = CSSSelector('.commentDiscussionTop > .userLink')
-	return selector(reply_elem)[0].text
 
 def find_reply_avatar(reply_elem):
 	selector = CSSSelector('.userLink > .commentDiscussionAvatar')
 	return selector(reply_elem)[0].get('src')
 
+def find_reply_date(reply_elem):
+	selector = CSSSelector('.commentDiscussionTop > .commentDate')
+	return selector(reply_elem)[0].text
+
+def find_reply_id(reply_elem):
+	return int(reply_elem.get('id').rsplit('_', 1)[-1])
+
+def find_reply_name(reply_elem):
+	selector = CSSSelector('.commentDiscussionTop > .userLink')
+	return selector(reply_elem)[0].text
+
 def find_reply_text(reply_elem):
 	selector = CSSSelector('.commentTextLong > .commentDiscussionContent, .commentTextShort > .commentDiscussionContent')
 	return get_full_node_content(selector(reply_elem)[0]).strip()
-
-def get_full_node_content(node):
-	s = node.text
-	if s is None:
-		s = ''
-	for child in node:
-		s += etree.tostring(child, encoding='unicode')
-	return s
-
-def picture_to_base64_data(url):
-	try:
-		filetype = get_filetype(url)
-		base64_data = b64encode(urlopen(url).read()).decode('utf-8').replace('\n', '')
-		return 'data:image/' + filetype + ';base64,' + base64_data
-	except (HTTPError, ValueError) as err:
-		print(err, '(URL: {0})'.format(url), file=stderr)
-
-def get_filename(url):
-	return basename(urlsplit(url)[2])
-
-def get_filetype(url):
-	return get_filename(url).rsplit('.', 1)[-1]
-
-def add_picture_data(pictures, entry):
-	entry['img_class'] = make_picture_class(pictures, entry['picture']) or ''
-	for comment in entry['comments']:
-		comment['img_class'] = make_picture_class(pictures, comment['avatar']) or ''
-		for reply in comment['replies']:
-			reply['img_class'] = make_picture_class(pictures, reply['avatar']) or ''
-
-def make_picture_class(pictures, url):
-	this = make_picture_class
-	if 'class_counter' not in this.__dict__:
-		this.class_counter = 0
-	if url not in pictures:
-		data = picture_to_base64_data(url)
-		if data == None:
-			return None
-		for k, v in pictures.items():
-			if v['data'] == data:
-				pictures[url] = { 'class': v['class'], 'data': None }
-				break
-		else:
-			pictures[url] = { 'class': 'p' + str(this.class_counter), 'data': data }
-			this.class_counter += 1
-	return pictures[url]['class']
-
-def month_number(month_str):
-	months = ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli',
-		'augusti', 'september', 'oktober', 'november', 'december']
-	return months.index(month_str) + 1
-
-def add_date_and_index(entry):
-	print(entry['title'])
-	pattern = '.+? (\d+?) (.+?) (\d+?)   .+? (\d+?)\/\d+?' #Note: important non-breaking space inbetween two normal spaces.
-	matches = match(pattern, entry['title'])
-	entry['date'] = '{year:04d}-{month:02d}-{day:02d}'.format(
-		year=int(matches.group(3)),
-		month=month_number(matches.group(2)),
-		day=int(matches.group(1)))
-	entry['index'] = int(matches.group(4))
-
-def deep_sort(entries):
-	entries.sort(key=itemgetter('date', 'index'))
-	for entry in entries:
-		entry['comments'].sort(key=itemgetter('id'))
-		for comment in entry['comments']:
-			comment['replies'].sort(key=itemgetter('id'))
 
 def format_html(username, entries, pictures):
 	return '''
@@ -230,8 +186,34 @@ def format_html(username, entries, pictures):
 	'''.format(username=username, picture_css=format_html_picture_css(pictures),
 				normal_css=format_html_normal_css(), entries=format_html_entries(entries))
 
-def format_html_picture_css(pictures):
-	return ''.join(['.{class}{{content:url({data});}}'.format_map(p) for p in pictures.values() if p['class'] != None and p['data'] != None])
+def format_html_comment(comment):
+	replies_html = format_html_replies(comment['replies'])
+	return '''
+	<div id='comment-{id}' class='comment'>
+		<img class='{img_class}'>
+		<span class='name'>{name}</span>
+		<span class='date'>{date}</span>
+		<p class='text'>{text}</p>
+		<div class='replies'>{replies_html}</div>
+	</div>
+	'''.format(replies_html=replies_html, **comment)
+
+def format_html_comments(comments):
+	return '\n'.join([format_html_comment(comment) for comment in comments])
+
+def format_html_entries(entries):
+	return '\n'.join([format_html_entry(entry) for entry in entries])
+
+def format_html_entry(entry):
+	comments_html = format_html_comments(entry['comments'])
+	return '''
+	<div id='entry-{id}' class='entry'>
+		<h2>{title}</h2>
+		<img class='{img_class}'>
+		<p>{text}</p>
+		<div class='comments'>{comments_html}</div>
+	</div>
+	'''.format(comments_html=comments_html, **entry)
 
 def format_html_normal_css():
 	return '''
@@ -277,34 +259,8 @@ def format_html_normal_css():
 		}
 		'''
 
-def format_html_entries(entries):
-	return '\n'.join([format_html_entry(entry) for entry in entries])
-
-def format_html_entry(entry):
-	comments_html = format_html_comments(entry['comments'])
-	return '''
-	<div id='entry-{id}' class='entry'>
-		<h2>{title}</h2>
-		<img class='{img_class}'>
-		<p>{text}</p>
-		<div class='comments'>{comments_html}</div>
-	</div>
-	'''.format(comments_html=comments_html, **entry)
-
-def format_html_comments(comments):
-	return '\n'.join([format_html_comment(comment) for comment in comments])
-
-def format_html_comment(comment):
-	replies_html = format_html_replies(comment['replies'])
-	return '''
-	<div id='comment-{id}' class='comment'>
-		<img class='{img_class}'>
-		<span class='name'>{name}</span>
-		<span class='date'>{date}</span>
-		<p class='text'>{text}</p>
-		<div class='replies'>{replies_html}</div>
-	</div>
-	'''.format(replies_html=replies_html, **comment)
+def format_html_picture_css(pictures):
+	return ''.join(['.{class}{{content:url({data});}}'.format_map(p) for p in pictures.values() if p['class'] != None and p['data'] != None])
 
 def format_html_replies(replies):
 	return '\n'.join([format_html_reply(reply) for reply in replies])
@@ -319,6 +275,20 @@ def format_html_reply(reply):
 		</div>
 		'''.format_map(reply)
 
+def get_filename(url):
+	return basename(urlsplit(url)[2])
+
+def get_filetype(url):
+	return get_filename(url).rsplit('.', 1)[-1]
+
+def get_full_node_content(node):
+	s = node.text
+	if s is None:
+		s = ''
+	for child in node:
+		s += etree.tostring(child, encoding='unicode')
+	return s
+
 def is_writable(filename):
 	try:
 		with open(filename, 'w'):
@@ -327,6 +297,36 @@ def is_writable(filename):
 		return False
 	else:
 		return True
+
+def make_picture_class(pictures, url):
+	this = make_picture_class
+	if 'class_counter' not in this.__dict__:
+		this.class_counter = 0
+	if url not in pictures:
+		data = picture_to_base64_data(url)
+		if data == None:
+			return None
+		for k, v in pictures.items():
+			if v['data'] == data:
+				pictures[url] = { 'class': v['class'], 'data': None }
+				break
+		else:
+			pictures[url] = { 'class': 'p' + str(this.class_counter), 'data': data }
+			this.class_counter += 1
+	return pictures[url]['class']
+
+def month_number(month_str):
+	months = ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli',
+		'augusti', 'september', 'oktober', 'november', 'december']
+	return months.index(month_str) + 1
+
+def picture_to_base64_data(url):
+	try:
+		filetype = get_filetype(url)
+		base64_data = b64encode(urlopen(url).read()).decode('utf-8').replace('\n', '')
+		return 'data:image/' + filetype + ';base64,' + base64_data
+	except (HTTPError, ValueError) as err:
+		print(err, '(URL: {0})'.format(url), file=stderr)
 
 
 ################################################################################
@@ -352,13 +352,12 @@ profile_dom = fetch_dom(profile_url, args.guestpass)
 url = find_newest_picture(profile_dom)
 
 if url == None:
-	print('No pictures were found on the user\'s profile!', file=stderr)
+	print('Not a single pictures was found on the user\'s profile.', file=stderr)
 	if args.guestpass == None:
 		print('  Perhaps a guest password is needed?', file=stderr)
 	exit(1)
 
-#while url != None:
-for i in range(3):
+while url != None:
 	counter += 1
 	print('Downloading entry #{0} (URL: {1})'.format(counter, url))
 	entry_dom = fetch_dom(url, args.guestpass)
