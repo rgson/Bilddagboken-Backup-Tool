@@ -172,15 +172,15 @@ def format_html(username, entries, pictures):
 	'<head>'
 		'<title>Bilddagboken - {username}</title>'
 		'<meta charset=\'utf-8\'>'
-		'<style>{normal_css}{picture_css}</style>'
+		'<style>{css}</style>'
 	'</head>'
 	'<body>'
 		'<h1>Bilddagboken - {username}</h1>'
-		'{entries}'
+		'{entries_html}'
 	'</body>'
 	'</html>'
-	).format(username=username, picture_css=format_html_picture_css(pictures),
-				normal_css=format_html_normal_css(), entries=format_html_entries(entries))
+	).format(username=username, entries_html=format_html_entries(entries),
+				css=(format_html_normal_css() + format_html_picture_css(pictures)))
 
 def format_html_comment(comment):
 	replies_html = format_html_replies(comment['replies'])
@@ -190,15 +190,21 @@ def format_html_comment(comment):
 		'<span>{name}</span>'
 		'<span class="d">{date}</span>'
 		'<div>{text}</div>'
-		'<div class="rs">{replies_html}</div>'
+		'{replies_html}'
 	'</div>'
 	).format(replies_html=replies_html, **comment)
 
 def format_html_comments(comments):
-	return ''.join([format_html_comment(comment) for comment in comments])
+	if len(comments) == 0:
+		return ''
+	comments_html = ''.join([format_html_comment(comment) for comment in comments])
+	return '<div class="cs">{0}</div>'.format(comments_html)
 
 def format_html_entries(entries):
-	return ''.join([format_html_entry(entry) for entry in entries])
+	if len(entries) == 0:
+		return ''
+	entries_html = ''.join([format_html_entry(entry) for entry in entries])
+	return '<main>{0}</main>'.format(entries_html)
 
 def format_html_entry(entry):
 	comments_html = format_html_comments(entry['comments'])
@@ -207,7 +213,7 @@ def format_html_entry(entry):
 		'<h2>{title}</h2>'
 		'<img class="{img_class}">'
 		'<div class="t">{text}</div>'
-		'<div class="cs">{comments_html}</div>'
+		'{comments_html}'
 	'</div>'
 	).format(comments_html=comments_html, **entry)
 
@@ -232,6 +238,7 @@ def format_html_normal_css():
 			'max-width:100%}'
 		'.cs{'
 			'border-top:1px solid #ddd;'
+			'margin-top:1em;'
 			'padding-top:1em}'
 		'.rs{'
 			'margin-left:25px}'
@@ -255,7 +262,10 @@ def format_html_picture_css(pictures):
 	return ''.join(['.{class}{{content:url({data})}}'.format_map(p) for p in pictures.values() if p['class'] != None and p['data'] != None])
 
 def format_html_replies(replies):
-	return ''.join([format_html_reply(reply) for reply in replies])
+	if len(replies) == 0:
+		return ''
+	replies_html = ''.join([format_html_reply(reply) for reply in replies])
+	return '<div class="rs">{0}</div>'.format(replies_html)
 
 def format_html_reply(reply):
 	return (
