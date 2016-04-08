@@ -6,7 +6,7 @@
 from argparse import ArgumentParser, FileType
 from base64 import b64encode
 from copy import deepcopy
-from lxml import etree
+from lxml import html
 from lxml.cssselect import CSSSelector
 from lxml.html import html5parser
 from operator import itemgetter
@@ -285,7 +285,7 @@ def get_filetype(url):
 
 def get_full_node_content(node):
 	s = node.text or ''
-	s += ''.join([etree.tostring(child, encoding='unicode') for child in node])
+	s += ''.join([html.tostring(child, encoding='unicode') for child in node])
 	return s
 
 def make_picture_class(pictures, url):
@@ -321,9 +321,7 @@ def picture_to_base64_data(url):
 def repair_html(html_str):
 	parser = html5parser.HTMLParser(namespaceHTMLElements=False)
 	parsed = html5parser.fromstring(html_str, guess_charset=False, parser=parser)
-	result = etree.tostring(parsed, encoding='unicode')
-	result = result.replace('<b/>', '').replace('<i/>', '')
-	return result
+	return html.tostring(parsed, encoding='unicode')
 
 ################################################################################
 # Classes
