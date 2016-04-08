@@ -185,12 +185,12 @@ def format_html(username, entries, pictures):
 def format_html_comment(comment):
 	replies_html = format_html_replies(comment['replies'])
 	return (
-	'<div class="comment">'
+	'<div class="c">'
 		'<img class="{img_class}">'
-		'{name}'
-		'<span class="date">{date}</span>'
-		'<p>{text}</p>'
-		'<div class="replies">{replies_html}</div>'
+		'<span>{name}</span>'
+		'<span class="d">{date}</span>'
+		'<div>{text}</div>'
+		'<div class="rs">{replies_html}</div>'
 	'</div>'
 	).format(replies_html=replies_html, **comment)
 
@@ -203,25 +203,52 @@ def format_html_entries(entries):
 def format_html_entry(entry):
 	comments_html = format_html_comments(entry['comments'])
 	return (
-	'<div class="entry">'
+	'<div class="e">'
 		'<h2>{title}</h2>'
 		'<img class="{img_class}">'
-		'<p>{text}</p>'
-		'<div class="comments">{comments_html}</div>'
+		'<div class="t">{text}</div>'
+		'<div class="cs">{comments_html}</div>'
 	'</div>'
 	).format(comments_html=comments_html, **entry)
 
 def format_html_normal_css():
 	return (
-		'body{width:45em;margin:auto;font-family:sans-serif;color:#333;line-height:1.6;word-wrap:break-word}'
-		'p{margin-top:0}'
-		'.entry{border:1px solid #ddd;padding:0 30px;margin-bottom:1em}'
-		'.entry>img{display:block;margin:0 auto 1em;max-width:100%}'
-		'.comments{border-top:1px solid #ddd;padding-top:1em}'
-		'.replies{margin-left:25px}'
-		'.comment>img,.reply>img{float:left;margin-right:1em;width:50px;height:50px}'
-		'.date{color:#777;float:right}'
-		'.entry>p,h1,h2{text-align:center}'
+		'body{'
+			'width:45em;'
+			'margin:auto;'
+			'font-family:sans-serif;'
+			'color:#333;'
+			'line-height:1.6;'
+			'word-wrap:break-word}'
+		'p{'
+			'margin-top:0}'
+		'.e{'
+			'border:1px solid #ddd;'
+			'padding:0 30px;'
+			'margin-bottom:1em}'
+		'.e>img{'
+			'display:block;'
+			'margin:0 auto 1em;'
+			'max-width:100%}'
+		'.cs{'
+			'border-top:1px solid #ddd;'
+			'padding-top:1em}'
+		'.rs{'
+			'margin-left:25px}'
+		'.c{'
+			'margin-bottom:1em}'
+		'.r{'
+			'margin-top:1em}'
+		'.c>img,.r>img{'
+			'float:left;'
+			'margin-right:1em;'
+			'width:50px;'
+			'height:50px}'
+		'.d{'
+			'color:#777;'
+			'float:right}'
+		'.e>.t,h1,h2{'
+			'text-align:center}'
 		)
 
 def format_html_picture_css(pictures):
@@ -232,11 +259,11 @@ def format_html_replies(replies):
 
 def format_html_reply(reply):
 	return (
-		'<div class="reply">'
+		'<div class="r">'
 			'<img class="{img_class}">'
-			'{name}'
-			'<span class="date">{date}</span>'
-			'<p>{text}</p>'
+			'<span>{name}</span>'
+			'<span class="d">{date}</span>'
+			'<div>{text}</div>'
 		'</div>'
 		).format_map(reply)
 
